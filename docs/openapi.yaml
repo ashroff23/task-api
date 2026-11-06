@@ -1,32 +1,81 @@
 openapi: 3.1.0
+
 info:
   title: Task API
   version: 1.0.0
+
 servers:
   - url: http://localhost:3000
-    description: Local development servers
+    description: Local development server
+  - url: https://task-api-service-wjg7.onrender.com
+    description: Production server
+
 tags:
   - name: Tasks
     description: Task-related endpoints
   - name: Monitoring
     description: Operational endpoints, such as health checks
+
 paths:
   /tasks:
     get:
       summary: List all tasks
+      description: >
+        Retrieve all tasks or optionally filter tasks by
+        their completion status.
       tags:
         - Tasks
+      parameters:
+        - name: completed
+          in: query
+          required: false
+          description: >
+            Filter tasks by completion status.
+            Use true for completed tasks and false
+            for incomplete tasks. Omit to return all tasks.
+          schema:
+            type: boolean
+          examples:
+            completed:
+              summary: Completed tasks
+              value: true
+            incomplete:
+              summary: Incomplete tasks
+              value: false
       responses:
         '200':
-          description: OK
+          description: Tasks retrieved successfully
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Task'
+              example:
+                - id: 1
+                  title: Set up project repository
+                  completed: true
+                - id: 2
+                  title: Install dependencies
+                  completed: true
+                - id: 3
+                  title: Create Task model
+                  completed: false
+
+        '400':
+          description: Invalid completed query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              example:
+                error: Validation failed
+                details:
+                  - completed must be true or false
+
     post:
       summary: Create a new task
+      description: Create a new task in the database.
       tags:
         - Tasks
       requestBody:
@@ -34,7 +83,23 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Task'
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                  minLength: 3
+                  maxLength: 100
+                  example: Buy groceries
+                completed:
+                  type: boolean
+                  default: false
+                  example: false
+            example:
+              title: Buy groceries
+              completed: false
+
       responses:
         '201':
           description: Task created successfully
@@ -42,26 +107,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Task'
+              example:
+                id: 4
+                title: Buy groceries
+                completed: false
+
         '400':
-          description: Bad request due to invalid data
+          description: Bad request due to invalid task data
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                  details:
-                    type: array
-                    items:
-                      type: string
-                example:
-                  errors:
-                    - 'Title must be at least 3 characters'
+                $ref: '#/components/schemas/ValidationError'
+              example:
+                error: Validation failed
+                details:
+                  - Title must be at least 3 and at most 100 characters
+
   /health:
     get:
       summary: Health Check
-      description: Returns the current status of the API. Used by Render to verify that the service is running.
+      description: >
+        Returns the current status of the API.
+        Used by Render to verify that the service is running.
       tags:
         - Monitoring
       responses:
@@ -75,6 +142,9 @@ paths:
                   status:
                     type: string
                     example: ok
+              example:
+                status: ok
+
 components:
   schemas:
     Task:
@@ -90,3 +160,16 @@ components:
         completed:
           type: boolean
           example: false
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Validation failed
+        details:
+          type: array
+          items:
+            type: string
+          example:
+            - completed must be true or false
